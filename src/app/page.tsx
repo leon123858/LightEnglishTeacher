@@ -1,103 +1,226 @@
-import Image from "next/image";
+'use client';
+
+import { useState } from 'react';
+import { ChatOpenAI } from '@langchain/openai';
+import { ChatOllama } from '@langchain/ollama';
+import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
+import {
+	SystemMessage,
+	HumanMessage,
+	AIMessage,
+} from '@langchain/core/messages';
+import { Header } from '../components/Header';
+import { AnalysisPanel } from '../components/AnalysisPanel';
+import { ChatPanel } from '../components/ChatPanel';
+import { AnalysisResult, ChatMessage as ChatMessageType } from '../types';
+
+const masterPrompt = `
+You are PEAT (Proactive English Article Tutor), an expert English tutor. Your goal is to help a user improve their English fluency by discussing an article they provide.
+The user's native language is Traditional Chinese.
+
+HERE IS THE ARTICLE:
+---
+...
+---
+
+YOUR TASK:
+1.  Read and deeply understand the article's core ideas, key arguments, and specific vocabulary.
+2.  Generate a response in a simple, parsable format. It MUST contain:
+    - A one-sentence summary in English.
+    - Three open-ended "conversation starters" based on the article. These questions should encourage the user to express opinions and reflections, not just repeat facts.
+
+OUTPUT FORMAT (Strictly follow this format):
+SUMMARY: [Your one-sentence summary here]
+STARTER 1: [Your first conversation starter here]
+STARTER 2: [Your second conversation starter here]
+STARTER 3: [Your third conversation starter here]`;
+
+const conversationPrompt = `
+You are PEAT (Proactive English Article Tutor). Your goal is to help a user understand an English article and improve their language skills through a natural, guided conversation.
+Your Persona:
+- Curious: Genuinely interested in the user's thoughts and opinions about the article.
+- Patient: Never rush the user. Give them space to think and respond.
+- Encouraging: Use positive language. Acknowledge their effort and insights.
+
+HERE IS THE ARTICLE:
+---
+...
+---
+
+YOUR TASK:
+Keep your responses short, ideally 1-3 sentences, to keep the conversation moving.
+
+OUTPUT FORMAT (Strictly follow this format):
+THINK: [This is your private thought process. Analyze User's Input: Briefly summarize the user's main point. Identify Key Error (if any): Note the most significant grammatical error. If none, write "None." Plan Your Response: Decide on your question and how you will subtly model the correction.]
+RESPONSE: [Your exact, user-facing message. It must follow all directives above.]`;
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+	// --- State Management ---
+	const [model, setModel] = useState('ollama');
+	const [openAIApiKey, setOpenAIApiKey] = useState('');
+	const [ollamaUrl, setOllamaUrl] = useState('http://localhost:11434');
+	const [article, setArticle] = useState('');
+	const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(
+		null
+	);
+	const [chatHistory, setChatHistory] = useState<ChatMessageType[]>([
+		new AIMessage(
+			'Welcome to Light English Teacher! please provide an article to start.'
+		),
+	]);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
-  );
+	const [isAnalysisLoading, setAnalysisLoading] = useState(false);
+	const [isChatLoading, setChatLoading] = useState(false);
+
+	// --- Core Logic ---
+
+	const getChatModel = () => {
+		switch (model) {
+			case 'openai':
+				if (!openAIApiKey) throw new Error('OpenAI API key is missing.');
+				return new ChatOpenAI({
+					apiKey: openAIApiKey,
+					modelName: 'gpt-4o',
+					temperature: 0.7,
+				});
+			case 'gemini':
+				// Gemini in client-side requires Google AI Studio key
+				// We will assume the user has configured it in their environment for this example
+				// Or we can add an input field for it. For now, we rely on env var.
+				const geminiApiKey = process.env.NEXT_PUBLIC_GOOGLE_API_KEY;
+				if (!geminiApiKey)
+					throw new Error(
+						'Google API Key is missing. Please set NEXT_PUBLIC_GOOGLE_API_KEY environment variable.'
+					);
+				return new ChatGoogleGenerativeAI({
+					apiKey: geminiApiKey,
+					model: 'gemini-1.5-flash',
+					temperature: 0.7,
+				});
+			case 'ollama':
+				if (!ollamaUrl) throw new Error('Ollama URL is missing.');
+				try {
+					new URL(ollamaUrl); // Validate URL format
+				} catch (error: unknown) {
+					console.error('Invalid Ollama URL:', error);
+					// If URL is invalid, we throw an error to inform the user
+					// This can be caught in the UI to show a user-friendly message
+					throw new Error('Invalid Ollama URL format. Please check the URL.');
+				}
+				return new ChatOllama({
+					baseUrl: ollamaUrl,
+					model: 'qwen3:8b',
+					temperature: 0.7,
+				});
+			default:
+				throw new Error('Invalid model selected');
+		}
+	};
+
+	const handleAnalyze = async (article: string) => {
+		setAnalysisLoading(true);
+		setArticle(article);
+		setAnalysisResult(null);
+
+		const systemMessage = new SystemMessage(
+			masterPrompt.replace('...', article)
+		);
+
+		// console.log(systemMessage.content); // 用來檢查結果
+
+		try {
+			const chatModel = getChatModel();
+			const result = await chatModel.invoke([systemMessage]);
+			const responseText = result.content.toString();
+
+			const summaryMatch = responseText.match(/SUMMARY: (.*)/);
+			const summary = summaryMatch
+				? summaryMatch[1].trim()
+				: '抱歉，無法生成摘要。';
+			const starters = Array.from(
+				responseText.matchAll(/STARTER \d+: (.*)/g)
+			).map((match) => match[1].trim());
+
+			if (starters.length === 0) throw new Error('無法解析對話啟動器。');
+
+			setAnalysisResult({ summary, starters });
+		} catch (error: any) {
+			console.error('Analysis Error:', error);
+			setAnalysisResult({
+				summary: `分析失敗: ${error.message}`,
+				starters: [],
+			});
+		} finally {
+			setAnalysisLoading(false);
+		}
+	};
+
+	const handleSendMessage = async (message: string) => {
+		setChatLoading(true);
+		const humanMessage = new HumanMessage(message);
+		const newHistory: ChatMessageType[] = [...chatHistory, humanMessage];
+		setChatHistory(newHistory);
+
+		try {
+			const chatModel = getChatModel();
+			const systemMessage = new SystemMessage(
+				conversationPrompt.replace('...', article)
+			);
+			const newHistorySlice =
+				newHistory.length > 10
+					? newHistory.slice(newHistory.length - 10)
+					: newHistory;
+			const result = await chatModel.invoke([
+				systemMessage,
+				...newHistorySlice,
+			]);
+			const responseText = result.content.toString();
+
+			console.log('AI Response:', responseText); // 用來檢查結果
+
+			const responseMatches = Array.from(
+				responseText.matchAll(/RESPONSE: (.*)/g)
+			).map((match) => match[1].trim());
+
+			if (responseMatches.length === 0) {
+				console.warn('can not parse AI response, using final response');
+				// 如果沒有找到任何回應，則使用整個結果的最後一行作為回復
+				const splitStr = responseText.split('\n');
+				const lastResponse = splitStr[splitStr.length - 1].trim();
+				setChatHistory([...newHistory, new AIMessage(lastResponse)]);
+			} else {
+				// 將最後一個回應作為AI消息
+				const lastResponse = responseMatches[responseMatches.length - 1];
+				setChatHistory([...newHistory, new AIMessage(lastResponse)]);
+			}
+		} catch (error: any) {
+			console.error('Chat Error:', error);
+			setChatHistory([
+				...newHistory,
+				new AIMessage(`抱歉，發生錯誤: ${error.message}`),
+			]);
+		} finally {
+			setChatLoading(false);
+		}
+	};
+
+	return (
+		<div className='flex flex-col h-screen bg-[#F8F7F4]'>
+			<Header />
+			<main className='flex-1 container mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-2 gap-6 overflow-y-auto'>
+				<AnalysisPanel
+					onAnalyze={handleAnalyze}
+					isLoading={isAnalysisLoading}
+					analysisResult={analysisResult}
+					onStarterClick={handleSendMessage}
+				/>
+				<ChatPanel
+					history={chatHistory}
+					isLoading={isChatLoading}
+					isReady={!!analysisResult}
+					onSendMessage={handleSendMessage}
+				/>
+			</main>
+		</div>
+	);
 }
