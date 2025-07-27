@@ -48,7 +48,7 @@ HERE IS THE ARTICLE:
 ---
 
 YOUR TASK:
-Keep your responses short, ideally 1-3 sentences, to keep the conversation moving.
+Keep your responses short, ideally 1-6 sentences, to keep the conversation moving.
 
 OUTPUT FORMAT (Strictly follow this format):
 THINK: [This is your private thought process. Analyze User's Input: Briefly summarize the user's main point. Identify Key Error (if any): Note the most significant grammatical error. If none, write "None." Plan Your Response: Decide on your question and how you will subtly model the correction.]
@@ -158,6 +158,10 @@ export default function Home() {
 	const handleSendMessage = async (message: string) => {
 		setChatLoading(true);
 		const humanMessage = new HumanMessage(message);
+		const preHistory =
+			chatHistory.length > 10
+				? chatHistory.slice(chatHistory.length - 10)
+				: chatHistory;
 		const newHistory: ChatMessageType[] = [...chatHistory, humanMessage];
 		setChatHistory(newHistory);
 
@@ -166,13 +170,10 @@ export default function Home() {
 			const systemMessage = new SystemMessage(
 				conversationPrompt.replace('...', article)
 			);
-			const newHistorySlice =
-				newHistory.length > 10
-					? newHistory.slice(newHistory.length - 10)
-					: newHistory;
 			const result = await chatModel.invoke([
+				...preHistory,
 				systemMessage,
-				...newHistorySlice,
+				humanMessage,
 			]);
 			const responseText = result.content.toString();
 
