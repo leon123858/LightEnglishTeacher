@@ -37,10 +37,6 @@ STARTER 3: [Your third conversation starter here]`;
 
 const conversationPrompt = `
 You are PEAT (Proactive English Article Tutor). Your goal is to help a user understand an English article and improve their language skills through a natural, guided conversation.
-Your Persona:
-- Curious: Genuinely interested in the user's thoughts and opinions about the article.
-- Patient: Never rush the user. Give them space to think and respond.
-- Encouraging: Use positive language. Acknowledge their effort and insights.
 
 HERE IS THE ARTICLE:
 ---
@@ -48,7 +44,16 @@ HERE IS THE ARTICLE:
 ---
 
 YOUR TASK:
-Keep your responses short, ideally 1-6 sentences, to keep the conversation moving.
+Keep your responses short, ideally <10 sentences, to keep the conversation moving. Remember that you should not repeat same response to the user.
+1.  Read the article and understand its core ideas, key arguments, and specific vocabulary.
+2.  When the user asks a question or makes a comment, respond in a way that
+		- Addresses their question or comment directly.
+		- Encourages them to express their own opinions and reflections.
+		- Uses simple, clear language appropriate for a non-native English speaker.
+		- Do not use emojis or overly casual language.
+3.  If the user makes a grammatical error, gently correct it by:
+		- Rephrasing their sentence correctly.
+		- Providing a brief explanation of the error.
 
 OUTPUT FORMAT (Strictly follow this format):
 THINK: [This is your private thought process. Analyze User's Input: Briefly summarize the user's main point. Identify Key Error (if any): Note the most significant grammatical error. If none, write "None." Plan Your Response: Decide on your question and how you will subtly model the correction.]
@@ -144,10 +149,12 @@ export default function Home() {
 			if (starters.length === 0) throw new Error('無法解析對話啟動器。');
 
 			setAnalysisResult({ summary, starters });
-		} catch (error: any) {
+		} catch (error) {
 			console.error('Analysis Error:', error);
+			const errorMessage =
+				error instanceof Error ? error.message : String(error);
 			setAnalysisResult({
-				summary: `分析失敗: ${error.message}`,
+				summary: `分析失敗: ${errorMessage}`,
 				starters: [],
 			});
 		} finally {
@@ -179,14 +186,12 @@ export default function Home() {
 
 			console.log('AI Response:', responseText); // 用來檢查結果
 
-			const responseMatches = Array.from(
-				responseText.matchAll(/RESPONSE: (.*)/g)
-			).map((match) => match[1].trim());
+			const responseMatches = responseText.split('RESPONSE:');
 
-			if (responseMatches.length === 0) {
+			if (responseMatches.length === 1) {
 				console.warn('can not parse AI response, using final response');
-				// 如果沒有找到任何回應，則使用整個結果的最後一行作為回復
-				const splitStr = responseText.split('\n');
+				// 如果沒有找到任何回應，則使用 think 標籤後的內容回復
+				const splitStr = responseText.split('</think>');
 				const lastResponse = splitStr[splitStr.length - 1].trim();
 				setChatHistory([...newHistory, new AIMessage(lastResponse)]);
 			} else {
@@ -194,11 +199,13 @@ export default function Home() {
 				const lastResponse = responseMatches[responseMatches.length - 1];
 				setChatHistory([...newHistory, new AIMessage(lastResponse)]);
 			}
-		} catch (error: any) {
+		} catch (error) {
 			console.error('Chat Error:', error);
+			const errorMessage =
+				error instanceof Error ? error.message : String(error);
 			setChatHistory([
 				...newHistory,
-				new AIMessage(`抱歉，發生錯誤: ${error.message}`),
+				new AIMessage(`抱歉，發生錯誤: ${errorMessage}`),
 			]);
 		} finally {
 			setChatLoading(false);

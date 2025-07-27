@@ -791,6 +791,11 @@
   resolved "https://registry.yarnpkg.com/@types/uuid/-/uuid-10.0.0.tgz#e9c07fe50da0f53dc24970cca94d619ff03f6f6d"
   integrity sha512-7gqG38EyHgyP1S+7+xomFtL+ZNHcKv6DwNaCZmJmo1vgMugyF3TCnXVg4t1uk89mLNwnLtnY3TpOpCOyp1/xHQ==
 
+"@types/webspeechapi@^0.0.29":
+  version "0.0.29"
+  resolved "https://registry.yarnpkg.com/@types/webspeechapi/-/webspeechapi-0.0.29.tgz#8f3c6b31b779df7a9bbac7f89acfce0c3bcb1972"
+  integrity sha512-AYEhqEJLdR08YPBOwYa73IHTiGU4DdngbKbtZdW+bzuM7s8LzKBed0Fwgl/a3oMqMY227qOT+3Lpr5A0WSmm+A==
+
 "@typescript-eslint/eslint-plugin@^5.4.2 || ^6.0.0 || ^7.0.0 || ^8.0.0":
   version "8.38.0"
   resolved "https://registry.yarnpkg.com/@typescript-eslint/eslint-plugin/-/eslint-plugin-8.38.0.tgz#6e5220d16f2691ab6d983c1737dd5b36e17641b7"
