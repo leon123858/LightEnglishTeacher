@@ -1,9 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { ChatOpenAI } from '@langchain/openai';
-import { ChatOllama } from '@langchain/ollama';
-import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import {
 	SystemMessage,
 	HumanMessage,
@@ -13,6 +10,8 @@ import { Header } from '../components/Header';
 import { AnalysisPanel } from '../components/AnalysisPanel';
 import { ChatPanel } from '../components/ChatPanel';
 import { AnalysisResult, ChatMessage as ChatMessageType } from '../types';
+import { useSettings } from '../contexts/SettingsContext';
+import { getChatModel } from '../lib/requester';
 
 const masterPrompt = `
 You are PEAT (Proactive English Article Tutor), an expert English tutor. Your goal is to help a user improve their English fluency by discussing an article they provide.
@@ -61,9 +60,8 @@ RESPONSE: [Your exact, user-facing message. It must follow all directives above.
 
 export default function Home() {
 	// --- State Management ---
-	const [model, setModel] = useState('ollama');
-	const [openAIApiKey, setOpenAIApiKey] = useState('');
-	const [ollamaUrl, setOllamaUrl] = useState('http://localhost:11434');
+	const { model, apiKey, url } = useSettings();
+
 	const [article, setArticle] = useState('');
 	const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(
 		null
@@ -77,65 +75,18 @@ export default function Home() {
 	const [isAnalysisLoading, setAnalysisLoading] = useState(false);
 	const [isChatLoading, setChatLoading] = useState(false);
 
-	// --- Core Logic ---
-
-	const getChatModel = () => {
-		switch (model) {
-			case 'openai':
-				if (!openAIApiKey) throw new Error('OpenAI API key is missing.');
-				return new ChatOpenAI({
-					apiKey: openAIApiKey,
-					modelName: 'gpt-4o',
-					temperature: 0.7,
-				});
-			case 'gemini':
-				// Gemini in client-side requires Google AI Studio key
-				// We will assume the user has configured it in their environment for this example
-				// Or we can add an input field for it. For now, we rely on env var.
-				const geminiApiKey = process.env.NEXT_PUBLIC_GOOGLE_API_KEY;
-				if (!geminiApiKey)
-					throw new Error(
-						'Google API Key is missing. Please set NEXT_PUBLIC_GOOGLE_API_KEY environment variable.'
-					);
-				return new ChatGoogleGenerativeAI({
-					apiKey: geminiApiKey,
-					model: 'gemini-1.5-flash',
-					temperature: 0.7,
-				});
-			case 'ollama':
-				if (!ollamaUrl) throw new Error('Ollama URL is missing.');
-				try {
-					new URL(ollamaUrl); // Validate URL format
-				} catch (error: unknown) {
-					console.error('Invalid Ollama URL:', error);
-					// If URL is invalid, we throw an error to inform the user
-					// This can be caught in the UI to show a user-friendly message
-					throw new Error('Invalid Ollama URL format. Please check the URL.');
-				}
-				return new ChatOllama({
-					baseUrl: ollamaUrl,
-					model: 'qwen3:8b',
-					temperature: 0.7,
-				});
-			default:
-				throw new Error('Invalid model selected');
-		}
-	};
-
 	const handleAnalyze = async (article: string) => {
 		setAnalysisLoading(true);
 		setArticle(article);
 		setAnalysisResult(null);
 
-		const systemMessage = new SystemMessage(
-			masterPrompt.replace('...', article)
-		);
+		const chatMessage = new HumanMessage(masterPrompt.replace('...', article));
 
 		// console.log(systemMessage.content); // 用來檢查結果
 
 		try {
-			const chatModel = getChatModel();
-			const result = await chatModel.invoke([systemMessage]);
+			const chatModel = getChatModel(model, apiKey, url);
+			const result = await chatModel.invoke([chatMessage]);
 			const responseText = result.content.toString();
 
 			const summaryMatch = responseText.match(/SUMMARY: (.*)/);
@@ -173,13 +124,13 @@ export default function Home() {
 		setChatHistory(newHistory);
 
 		try {
-			const chatModel = getChatModel();
+			const chatModel = getChatModel(model, apiKey, url);
 			const systemMessage = new SystemMessage(
 				conversationPrompt.replace('...', article)
 			);
 			const result = await chatModel.invoke([
-				...preHistory,
 				systemMessage,
+				...preHistory,
 				humanMessage,
 			]);
 			const responseText = result.content.toString();

@@ -210,7 +210,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
 		if (message.trim()) {
-			handleToggleRecording(); // 提交後停止錄音
+			if (isRecording) handleToggleRecording(); // 提交後停止錄音
 			onSendMessage(message);
 			setMessage('');
 		}
